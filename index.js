@@ -1,69 +1,81 @@
-Access-Control-Allow-Origin;
-Access-Control-Allow-Methods: POST, GET, OPTIONS;
-Access-Control-Allow-Headers;
-const search = document.getElementById("search");
-const form = document.getElementById("form");
-const result = document.getElementById("result");
 
-//api url
+        const search = document.getElementById("search");
+        const form = document.getElementById("form");
+        const result = document.getElementById("result");
 
-const apiURL = "https://api.lyrics.ovh";
+        // API URL
+        const apiURL = "https://api.lyrics.ovh";
 
-form.addEventListener("submit", (e) => {
-  e.preventDefault();
-  const search_value = search.value.trim();
+        // Event listener for form submission
+        form.addEventListener("submit", (e) => {
+            e.preventDefault();
+            const searchValue = search.value.trim();
 
-  //checking whether the serach value is valid or not
+            // Validate search input
+            if (!searchValue) {
+                alert("Please enter a song title or artist name.");
+            } else {
+                searchSong(searchValue);
+            }
+        });
 
-  if (!search_value) {
-    alert(
-      "There is nothing to search. Please enter a valid song title or artist name"
-    );
-  } else {
-    searchsong(search_value);
-  }
-});
+        // Fetch song suggestions from API
+        async function searchSong(searchValue) {
+            try {
+                const searchResult = await fetch(`${apiURL}/suggest/${searchValue}`);
+                if (!searchResult.ok) throw new Error("Failed to fetch song suggestions.");
+                const data = await searchResult.json();
+                showData(data);
+            } catch (error) {
+                result.innerHTML = `<p class="error">${error.message}</p>`;
+            }
+        }
 
-async function searchsong(searchvalue) {
-  const searchresult = await fetch(`${apiURL}/suggest/${searchvalue}`);
-  const data = await searchresult.json();
+        // Display song suggestions in the DOM
+        function showData(data) {
+            if (!data.data || data.data.length === 0) {
+                result.innerHTML = `<p class="error">No results found. Please try another search.</p>`;
+                return;
+            }
 
-  //showing data
-  showData(data);
-}
-// Display final result in DOM
+            result.innerHTML = `
+                <ul class="song-list">
+                    ${data.data.map(song => `
+                        <li>
+                            <div>
+                                <strong>${song.artist.name}</strong> - ${song.title}
+                            </div>
+                            <span data-artist="${song.artist.name}" data-songtitle="${song.title}">Get Lyrics</span>
+                        </li>
+                    `).join("")}
+                </ul>
+            `;
+        }
 
-function showData(data) {
-  result.innerHTML = `<ul class="song-list">
-    ${data.data
-      .map(
-        (song) => `
-    <li>
-    <div>
-    <strong>${song.artist.name}</strong> - ${song.title}
-    </div>
-    <span data-artist="${song.artist.name}" data-songtitle="${song.title}"> get lyrics</span>
-    </li>
-    `
-      )
-      .join("")}
-    </ul>`;
-}
+        // Event listener for "Get Lyrics" button
+        result.addEventListener("click", (e) => {
+            const clickedElement = e.target;
+            if (clickedElement.tagName === "SPAN") {
+                const artist = clickedElement.getAttribute("data-artist");
+                const songTitle = clickedElement.getAttribute("data-songtitle");
+                getLyrics(artist, songTitle);
+            }
+        });
 
-result.addEventListener("click", (e) => {
-  const clickedelement = e.target;
-  if (clickedelement.tagName == "SPAN") {
-    const artist = clickedelement.getAttribute("data-artist");
-    const songtitle = clickedelement.getAttribute("data-songtitle");
-    getlyrics(artist, songtitle);
-  }
-});
-
-async function getlyrics(artist, songname) {
-  const res = await fetch(`${apiURL}/v1/${artist}/${songname}`);
-  const data = await res.json();
-  const lyrics = data.lyrics.replace(/(\r\n|\r|\n)/g, "<br>");
-  result.innerHTML = `<h2 class="songinfo"><strong>${artist}</strong> - ${songname}</h2>
-  <p class="lyrics">${lyrics}</p>
-  `;
-}
+        // Fetch lyrics from API
+        async function getLyrics(artist, songTitle) {
+            try {
+              const res = await fetch(`${apiURL}/v1/${encodeURIComponent(artist)}/${encodeURIComponent(songTitle)}`);
+                if (!res.ok) throw new Error("Failed to fetch lyrics.");
+                const data = await res.json();
+                if (!data.lyrics) throw new Error("Lyrics not found for this song.");
+                const lyrics = data.lyrics.replace(/(\r\n|\r|\n)/g, "<br>");
+                result.innerHTML = `
+                    <h2 class="songinfo"><strong>${artist}</strong> - ${songTitle}</h2>
+                    <p class="lyrics">${lyrics}</p>
+                `;
+            } catch (error) {
+                result.innerHTML = `<p class="error">${error.message}</p>`;
+            }
+        }
+   
